@@ -4,7 +4,9 @@ const DateEntry = require("../models/DateEntry");
 
 /**
  * @route   GET /api/dates/summary
- * @desc    Spending totals: overall, plus a breakdown by who paid.
+ * @desc    Spending totals across all dates, computed from itemized expenses.
+ *          $unwind flattens each date's `expenses` array into one document per
+ *          line item, so we can sum amounts and break them down by who paid.
  *
  * NOTE: This static route is declared BEFORE any parameterized routes so that
  * "summary" is never mistaken for an :id.
@@ -12,25 +14,44 @@ const DateEntry = require("../models/DateEntry");
 router.get("/summary", async (req, res) => {
   try {
     const [result] = await DateEntry.aggregate([
+      { $unwind: "$expenses" },
       {
         $group: {
           _id: null,
-          totalSpent: { $sum: "$totalAmount" },
+          totalSpent: { $sum: "$expenses.amount" },
           paidByMe: {
-            $sum: { $cond: [{ $eq: ["$paidBy", "Me"] }, "$totalAmount", 0] },
+            $sum: {
+              $cond: [
+                { $eq: ["$expenses.paidBy", "Me"] },
+                "$expenses.amount",
+                0,
+              ],
+            },
           },
           paidByHer: {
-            $sum: { $cond: [{ $eq: ["$paidBy", "Her"] }, "$totalAmount", 0] },
+            $sum: {
+              $cond: [
+                { $eq: ["$expenses.paidBy", "Her"] },
+                "$expenses.amount",
+                0,
+              ],
+            },
           },
           split: {
-            $sum: { $cond: [{ $eq: ["$paidBy", "Split"] }, "$totalAmount", 0] },
+            $sum: {
+              $cond: [
+                { $eq: ["$expenses.paidBy", "Split"] },
+                "$expenses.amount",
+                0,
+              ],
+            },
           },
         },
       },
       { $project: { _id: 0 } },
     ]);
 
-    // aggregate returns [] when there are no documents yet
+    // aggregate returns [] when there are no expenses anywhere yet
     res.json(result || { totalSpent: 0, paidByMe: 0, paidByHer: 0, split: 0 });
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });

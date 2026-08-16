@@ -5,12 +5,12 @@ import { CalendarDays, MapPin, Heart, PlusCircle } from "lucide-react";
 
 const API_URL = "http://localhost:5000/api/dates";
 
-// Consistent color coding for who paid — the color itself carries the meaning.
-const payerStyles = {
-  Me: "bg-sky-50 text-sky-700 ring-sky-600/20",
-  Her: "bg-rose-50 text-rose-700 ring-rose-600/20",
-  Split: "bg-violet-50 text-violet-700 ring-violet-600/20",
-};
+// Assumes Philippine pesos (the app is scoped to Zamboanga City). Change the
+// locale/currency here if you track dates elsewhere.
+const peso = new Intl.NumberFormat("en-PH", {
+  style: "currency",
+  currency: "PHP",
+});
 
 function formatDate(value) {
   if (!value) return "";
@@ -20,6 +20,11 @@ function formatDate(value) {
     day: "numeric",
     year: "numeric",
   });
+}
+
+// Sum all itemized expenses for a single date.
+function dateTotal(expenses = []) {
+  return expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
 }
 
 export default function Dashboard() {
@@ -101,41 +106,39 @@ export default function Dashboard() {
   // List of dates
   return (
     <div className="space-y-3">
-      {dates.map((d) => (
-        <article
-          key={d._id}
-          className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <h3 className="font-semibold leading-tight text-stone-800">
-              {d.title}
-            </h3>
-            {d.paidBy && (
-              <span
-                className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${
-                  payerStyles[d.paidBy] ??
-                  "bg-stone-100 text-stone-600 ring-stone-500/20"
-                }`}
-              >
-                {d.paidBy === "Split" ? "Split" : `Paid by ${d.paidBy}`}
-              </span>
-            )}
-          </div>
+      {dates.map((d) => {
+        const total = dateTotal(d.expenses);
+        return (
+          <article
+            key={d._id}
+            className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="font-semibold leading-tight text-stone-800">
+                {d.title}
+              </h3>
+              {d.expenses?.length > 0 && (
+                <span className="shrink-0 rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-700">
+                  {peso.format(total)}
+                </span>
+              )}
+            </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-stone-500">
-            <span className="inline-flex items-center gap-1.5">
-              <CalendarDays className="h-4 w-4 text-stone-400" />
-              {formatDate(d.date)}
-            </span>
-            {d.locationName && (
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-stone-500">
               <span className="inline-flex items-center gap-1.5">
-                <MapPin className="h-4 w-4 text-stone-400" />
-                {d.locationName}
+                <CalendarDays className="h-4 w-4 text-stone-400" />
+                {formatDate(d.date)}
               </span>
-            )}
-          </div>
-        </article>
-      ))}
+              {d.location?.name && (
+                <span className="inline-flex items-center gap-1.5">
+                  <MapPin className="h-4 w-4 text-stone-400" />
+                  {d.location.name}
+                </span>
+              )}
+            </div>
+          </article>
+        );
+      })}
     </div>
   );
 }
