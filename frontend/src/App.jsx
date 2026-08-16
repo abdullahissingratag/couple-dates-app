@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
+import AddDate from "./pages/AddDate";
 
 // Lightweight placeholders so the "Add Date" and "Stats" tabs don't lead to
 // blank screens. Swap these out for real pages as you build them.
@@ -21,7 +22,7 @@ export default function App() {
             <Outlet /> where the matched child route appears. */}
         <Route element={<Layout />}>
           <Route index element={<Dashboard />} />
-          <Route path="add" element={<ComingSoon title="Add Date" />} />
+          <Route path="add" element={<AddDate />} />
           <Route path="stats" element={<ComingSoon title="Stats" />} />
         </Route>
       </Routes>
