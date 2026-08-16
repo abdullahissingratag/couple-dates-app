@@ -14,45 +14,72 @@ const DateEntry = require("../models/DateEntry");
 router.get("/summary", async (req, res) => {
   try {
     const [result] = await DateEntry.aggregate([
-      { $unwind: "$expenses" },
       {
-        $group: {
-          _id: null,
-          totalSpent: { $sum: "$expenses.amount" },
-          paidByMe: {
-            $sum: {
-              $cond: [
-                { $eq: ["$expenses.paidBy", "Me"] },
-                "$expenses.amount",
-                0,
-              ],
+        $facet: {
+          totals: [
+            { $unwind: "$expenses" },
+            {
+              $group: {
+                _id: null,
+                totalSpent: { $sum: "$expenses.amount" },
+                paidByMe: {
+                  $sum: {
+                    $cond: [
+                      { $eq: ["$expenses.paidBy", "Me"] },
+                      "$expenses.amount",
+                      0,
+                    ],
+                  },
+                },
+                paidByHer: {
+                  $sum: {
+                    $cond: [
+                      { $eq: ["$expenses.paidBy", "Her"] },
+                      "$expenses.amount",
+                      0,
+                    ],
+                  },
+                },
+                split: {
+                  $sum: {
+                    $cond: [
+                      { $eq: ["$expenses.paidBy", "Split"] },
+                      "$expenses.amount",
+                      0,
+                    ],
+                  },
+                },
+              },
             },
+          ],
+          count: [{ $count: "totalDates" }],
+        },
+      },
+      {
+        $project: {
+          totalSpent: {
+            $ifNull: [{ $arrayElemAt: ["$totals.totalSpent", 0] }, 0],
           },
+          paidByMe: { $ifNull: [{ $arrayElemAt: ["$totals.paidByMe", 0] }, 0] },
           paidByHer: {
-            $sum: {
-              $cond: [
-                { $eq: ["$expenses.paidBy", "Her"] },
-                "$expenses.amount",
-                0,
-              ],
-            },
+            $ifNull: [{ $arrayElemAt: ["$totals.paidByHer", 0] }, 0],
           },
-          split: {
-            $sum: {
-              $cond: [
-                { $eq: ["$expenses.paidBy", "Split"] },
-                "$expenses.amount",
-                0,
-              ],
-            },
+          split: { $ifNull: [{ $arrayElemAt: ["$totals.split", 0] }, 0] },
+          totalDates: {
+            $ifNull: [{ $arrayElemAt: ["$count.totalDates", 0] }, 0],
           },
         },
       },
-      { $project: { _id: 0 } },
     ]);
-
-    // aggregate returns [] when there are no expenses anywhere yet
-    res.json(result || { totalSpent: 0, paidByMe: 0, paidByHer: 0, split: 0 });
+    res.json(
+      result || {
+        totalSpent: 0,
+        paidByMe: 0,
+        paidByHer: 0,
+        split: 0,
+        totalDates: 0,
+      },
+    );
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
