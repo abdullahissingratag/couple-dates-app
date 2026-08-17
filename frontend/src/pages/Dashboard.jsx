@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { CalendarDays, MapPin, Heart, PlusCircle } from "lucide-react";
+import {
+  CalendarDays,
+  MapPin,
+  Heart,
+  PlusCircle,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 
 const API_URL = "http://localhost:5000/api/dates";
 
@@ -28,9 +35,11 @@ function dateTotal(expenses = []) {
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [dates, setDates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
     let ignore = false;
@@ -55,6 +64,24 @@ export default function Dashboard() {
       ignore = true;
     };
   }, []);
+
+  async function handleDelete(id) {
+    const confirmed = window.confirm(
+      "Delete this date? This cannot be undone.",
+    );
+    if (!confirmed) return;
+
+    setDeletingId(id);
+    try {
+      await axios.delete(`${API_URL}/${id}`);
+      // Drop it from local state so the list updates instantly.
+      setDates((prev) => prev.filter((d) => d._id !== id));
+    } catch (err) {
+      window.alert("Couldn't delete this date. Please try again.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   // Loading — lightweight skeleton cards
   if (loading) {
@@ -108,31 +135,58 @@ export default function Dashboard() {
     <div className="space-y-3">
       {dates.map((d) => {
         const total = dateTotal(d.expenses);
+        const isDeleting = deletingId === d._id;
         return (
           <article
             key={d._id}
-            className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+            className={`rounded-2xl border border-stone-200 bg-white p-4 shadow-sm transition ${
+              isDeleting ? "opacity-50" : "hover:shadow-md"
+            }`}
           >
             <div className="flex items-start justify-between gap-3">
               <h3 className="font-semibold leading-tight text-stone-800">
                 {d.title}
               </h3>
+
+              {/* Actions */}
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => navigate(`/edit/${d._id}`)}
+                  disabled={isDeleting}
+                  aria-label="Edit date"
+                  className="rounded-lg p-2 text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-700 disabled:opacity-50"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(d._id)}
+                  disabled={isDeleting}
+                  aria-label="Delete date"
+                  className="rounded-lg p-2 text-stone-400 transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-3 flex items-center justify-between gap-3 text-sm text-stone-500">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                <span className="inline-flex items-center gap-1.5">
+                  <CalendarDays className="h-4 w-4 text-stone-400" />
+                  {formatDate(d.date)}
+                </span>
+                {d.location?.name && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <MapPin className="h-4 w-4 text-stone-400" />
+                    {d.location.name}
+                  </span>
+                )}
+              </div>
               {d.expenses?.length > 0 && (
                 <span className="shrink-0 rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-700">
                   {peso.format(total)}
-                </span>
-              )}
-            </div>
-
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-stone-500">
-              <span className="inline-flex items-center gap-1.5">
-                <CalendarDays className="h-4 w-4 text-stone-400" />
-                {formatDate(d.date)}
-              </span>
-              {d.location?.name && (
-                <span className="inline-flex items-center gap-1.5">
-                  <MapPin className="h-4 w-4 text-stone-400" />
-                  {d.location.name}
                 </span>
               )}
             </div>
