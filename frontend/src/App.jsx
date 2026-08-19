@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import PinLock from "./components/PinLock";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import AddDate from "./pages/AddDate";
@@ -7,18 +8,22 @@ import Stats from "./pages/Stats";
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Layout renders the shared chrome (header + bottom nav) and an
-            <Outlet /> where the matched child route appears. */}
-        <Route element={<Layout />}>
-          <Route index element={<Dashboard />} />
-          <Route path="add" element={<AddDate />} />
-          {/* Reached from the Dashboard's edit button, not a nav tab. */}
-          <Route path="edit/:id" element={<EditDate />} />
-          <Route path="stats" element={<Stats />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    // PinLock wraps everything, so nothing below (routing included) renders
+    // until the correct PIN is entered.
+    <PinLock>
+      <BrowserRouter>
+        <Routes>
+          {/* Layout renders the shared chrome (header + bottom nav) and an
+              <Outlet /> where the matched child route appears. */}
+          <Route element={<Layout />}>
+            <Route index element={<Dashboard />} />
+            <Route path="add" element={<AddDate />} />
+            {/* Reached from the Dashboard's edit button, not a nav tab. */}
+            <Route path="edit/:id" element={<EditDate />} />
+            <Route path="stats" element={<Stats />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </PinLock>
   );
 }
