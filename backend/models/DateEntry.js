@@ -1,9 +1,5 @@
 const mongoose = require("mongoose");
 
-/**
- * A single itemized expense within a date (e.g. "Movie tickets", "Popcorn").
- * Each line has its own payer so we can split costs accurately.
- */
 const expenseSchema = new mongoose.Schema({
   item: {
     type: String,
@@ -21,10 +17,6 @@ const expenseSchema = new mongoose.Schema({
   },
 });
 
-/**
- * Schema for a single "date" entry. Model is named `DateEntry` (not `Date`) so
- * it never shadows the built-in JavaScript `Date` used for the default below.
- */
 const dateSchema = new mongoose.Schema(
   {
     title: {
@@ -59,6 +51,11 @@ const dateSchema = new mongoose.Schema(
     // Itemized expenses replace the old single totalAmount / paidBy pair.
     expenses: {
       type: [expenseSchema],
+      default: [],
+    },
+
+    photos: {
+      type: [String],
       default: [],
     },
   },

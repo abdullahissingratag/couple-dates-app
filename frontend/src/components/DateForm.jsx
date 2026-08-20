@@ -1,5 +1,14 @@
 import { useState, useEffect, useRef } from "react";
-import { Star, Heart, Loader2, MapPin, Plus, Trash2 } from "lucide-react";
+import {
+  Star,
+  Heart,
+  Loader2,
+  MapPin,
+  Plus,
+  Trash2,
+  ImagePlus,
+  X,
+} from "lucide-react";
 
 const CATEGORIES = [
   "Dining",
@@ -11,7 +20,10 @@ const CATEGORIES = [
 ];
 const PAYERS = ["Me", "Her", "Split"];
 
-// Shared styling so every field looks consistent.
+const CLOUDINARY_CLOUD_NAME = "atcwcfgg";
+const CLOUDINARY_UPLOAD_PRESET = "thrwa8xe";
+const CLOUDINARY_UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+
 const fieldClass =
   "w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm text-stone-800 placeholder-stone-400 shadow-sm outline-none transition focus:border-rose-400 focus:ring-2 focus:ring-rose-200";
 const labelClass = "mb-1.5 block text-sm font-medium text-stone-700";
@@ -21,12 +33,9 @@ const peso = new Intl.NumberFormat("en-PH", {
   currency: "PHP",
 });
 
-// Local YYYY-MM-DD so a fresh form defaults to *today* in the user's timezone.
 const todayLocal = () => new Date().toLocaleDateString("en-CA");
 const emptyExpense = () => ({ item: "", amount: "", paidBy: "Split" });
 
-// Stored dates arrive as ISO strings; <input type="date"> needs YYYY-MM-DD.
-// Slicing the ISO date portion round-trips exactly what was saved.
 function toDateInput(value) {
   if (!value) return todayLocal();
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value))
@@ -37,8 +46,6 @@ function toDateInput(value) {
     : d.toLocaleDateString("en-CA");
 }
 
-// Map an expense subdocument from the API into an editable form row.
-// Amounts are kept as strings while editing (matching a fresh, empty row).
 function toExpenseRow(e) {
   return {
     item: e?.item ?? "",
@@ -47,17 +54,6 @@ function toExpenseRow(e) {
   };
 }
 
-/**
- * The full "date" form UI, shared by the Add and Edit pages.
- *
- * Props:
- *   - initialData:  an existing date to pre-fill (edit mode), or null/undefined (add mode)
- *   - onSubmit:     (payload) => void  — the parent performs the POST or PUT
- *   - isSubmitting: boolean            — drives the submit button's spinner/disabled state
- *
- * The parent owns the network request, navigation, and error banner. This
- * component just collects input and hands back a schema-shaped payload.
- */
 export default function DateForm({ initialData, onSubmit, isSubmitting }) {
   const isEditing = Boolean(initialData);
   const [hoverRating, setHoverRating] = useState(0);
@@ -102,8 +98,7 @@ export default function DateForm({ initialData, onSubmit, isSubmitting }) {
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  // Start true so we skip the search on mount (a pre-filled edit value) and the
-  // one that a selection would otherwise trigger.
+
   const skipSearchRef = useRef(true);
 
   useEffect(() => {
@@ -117,13 +112,11 @@ export default function DateForm({ initialData, onSubmit, isSubmitting }) {
     }
 
     const controller = new AbortController();
-    // Debounce: Nominatim asks for <= 1 request/second, so wait for a pause.
+
     const timer = setTimeout(async () => {
       try {
         setSearching(true);
-        // Nominatim ignores the structured `city` param when a free-form `q` is
-        // present, so we bias to Zamboanga City by appending it to the query
-        // and limiting to the Philippines instead.
+
         const q = `${locationQuery}, Zamboanga City, Philippines`;
         const url =
           "https://nominatim.openstreetmap.org/search" +
@@ -163,6 +156,47 @@ export default function DateForm({ initialData, onSubmit, isSubmitting }) {
     setShowResults(false);
   }
 
+  // ---- Photos (Cloudinary unsigned upload) ----
+  const [photos, setPhotos] = useState(initialData?.photos ?? []);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
+
+  async function handleFileChange(e) {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    setUploadError(null);
+    setUploading(true);
+    try {
+      // Upload each selected file, collecting the secure_urls Cloudinary returns.
+      const urls = [];
+      for (const file of files) {
+        const data = new FormData();
+        data.append("file", file);
+        data.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+        // Plain fetch on purpose: the browser sets the multipart boundary itself.
+        const res = await fetch(CLOUDINARY_UPLOAD_URL, {
+          method: "POST",
+          body: data,
+        });
+        if (!res.ok) throw new Error("Cloudinary upload failed");
+        const json = await res.json();
+        if (json.secure_url) urls.push(json.secure_url);
+      }
+      setPhotos((prev) => [...prev, ...urls]);
+    } catch (err) {
+      setUploadError("Couldn't upload that image. Please try again.");
+    } finally {
+      setUploading(false);
+      // Reset the input so picking the same file again still fires onChange.
+      e.target.value = "";
+    }
+  }
+
+  function removePhoto(url) {
+    setPhotos((prev) => prev.filter((p) => p !== url));
+  }
+
   // ---- Rating ----
   function setRating(n) {
     setForm((prev) => ({ ...prev, rating: prev.rating === n ? 0 : n }));
@@ -199,6 +233,9 @@ export default function DateForm({ initialData, onSubmit, isSubmitting }) {
     if (location) payload.location = location;
     else if (locationQuery.trim())
       payload.location = { name: locationQuery.trim() };
+    // Photos are always sent as an array (possibly empty), like expenses, so an
+    // edit that removes every photo actually clears them on the backend.
+    payload.photos = photos;
 
     onSubmit(payload);
   }
@@ -438,10 +475,74 @@ export default function DateForm({ initialData, onSubmit, isSubmitting }) {
         />
       </div>
 
+      {/* Photos */}
+      <div>
+        <label className={labelClass}>Photos</label>
+
+        {/* Thumbnail previews */}
+        {photos.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-2">
+            {photos.map((url) => (
+              <div
+                key={url}
+                className="group relative h-20 w-20 overflow-hidden rounded-xl border border-stone-200 bg-stone-100"
+              >
+                <img
+                  src={url}
+                  alt="Date photo"
+                  className="h-full w-full object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => removePhoto(url)}
+                  aria-label="Remove photo"
+                  className="absolute right-1 top-1 rounded-full bg-stone-900/60 p-1 text-white opacity-0 transition-opacity hover:bg-stone-900/80 focus:opacity-100 group-hover:opacity-100"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Upload control — a styled label wrapping a hidden file input */}
+        <label
+          className={`flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-stone-300 px-4 py-2.5 text-sm font-medium text-stone-600 transition-colors ${
+            uploading
+              ? "cursor-not-allowed opacity-60"
+              : "cursor-pointer hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600"
+          }`}
+        >
+          {uploading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Uploading...
+            </>
+          ) : (
+            <>
+              <ImagePlus className="h-4 w-4" />
+              Add photos
+            </>
+          )}
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleFileChange}
+            disabled={uploading}
+            className="hidden"
+          />
+        </label>
+
+        {uploadError && (
+          <p className="mt-1.5 text-xs text-rose-600">{uploadError}</p>
+        )}
+      </div>
+
       {/* Submit */}
       <button
         type="submit"
-        disabled={isSubmitting}
+        disabled={isSubmitting || uploading}
         className="flex w-full items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isSubmitting ? (

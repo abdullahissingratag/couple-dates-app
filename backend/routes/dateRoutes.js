@@ -3,14 +3,8 @@ const router = express.Router();
 const DateEntry = require("../models/DateEntry");
 
 /**
- * @route   GET /api/dates/summary
- * @desc    Spending totals across all dates, computed from itemized expenses,
- *          plus a count of how many dates have been logged.
- *
- * NOTE: This static route is declared BEFORE any parameterized routes so that
- * "summary" is never mistaken for an :id.
- *
- * Returns: { totalSpent, paidByMe, paidByHer, split, totalDates }
+ * @route
+ * @desc
  */
 router.get("/summary", async (req, res) => {
   try {
@@ -88,8 +82,8 @@ router.get("/summary", async (req, res) => {
 });
 
 /**
- * @route   GET /api/dates
- * @desc    Fetch all date entries, most recent first.
+ * @route
+ * @desc
  */
 router.get("/", async (req, res) => {
   try {
@@ -101,8 +95,8 @@ router.get("/", async (req, res) => {
 });
 
 /**
- * @route   POST /api/dates
- * @desc    Create a new date entry.
+ * @route
+ * @desc
  */
 router.post("/", async (req, res) => {
   try {
@@ -119,11 +113,10 @@ router.post("/", async (req, res) => {
 });
 
 /**
- * @route   GET /api/dates/:id
- * @desc    Fetch a single date entry by its id — used to pre-fill the edit form.
+ * @route
+ * @desc
  *
- * NOTE: Declared AFTER '/summary' so the literal "summary" path is never
- * captured here as an :id.
+ *
  */
 router.get("/:id", async (req, res) => {
   try {
@@ -141,21 +134,12 @@ router.get("/:id", async (req, res) => {
 });
 
 /**
- * @route   PUT /api/dates/:id
- * @desc    Update an existing date entry.
- *
- *          The edit form always resubmits the whole record, so this behaves as
- *          a replace: fields that are present are $set, and optional fields the
- *          user cleared (and therefore omitted) are $unset. That's what lets an
- *          edit actually remove a category, rating, note, or location — a plain
- *          findByIdAndUpdate($set) would silently keep the old value.
- *
- *          title, date, and expenses are always sent by the form, so they're
- *          always written (expenses defaults to [] when the user removes them).
+ * @route
+ * @desc
  */
 router.put("/:id", async (req, res) => {
   try {
-    const { title, date, expenses, category, rating, notes, location } =
+    const { title, date, expenses, category, rating, notes, location, photos } =
       req.body;
 
     const $set = {};
@@ -165,6 +149,7 @@ router.put("/:id", async (req, res) => {
     if (title !== undefined) $set.title = title;
     if (date !== undefined) $set.date = date;
     $set.expenses = Array.isArray(expenses) ? expenses : [];
+    $set.photos = Array.isArray(photos) ? photos : [];
 
     // Optional fields: set when provided, clear when omitted.
     const optional = { category, rating, notes, location };
