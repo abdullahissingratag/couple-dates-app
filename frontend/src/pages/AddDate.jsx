@@ -3,7 +3,11 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import DateForm from "../components/DateForm";
 
-const API_URL = "http://localhost:5000/api/dates";
+// Backend origin comes from the VITE_API_URL env var (set in .env locally and
+// in the Vercel dashboard for production). Falls back to the local server so
+// `npm run dev` works with no .env present.
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_URL = `${API_BASE}/api/dates`;
 
 export default function AddDate() {
   const navigate = useNavigate();

@@ -11,8 +11,14 @@ import {
   Images,
 } from "lucide-react";
 
-const API_URL = "http://localhost:5000/api/dates";
+// Backend origin comes from the VITE_API_URL env var (set in .env locally and
+// in the Vercel dashboard for production). Falls back to the local server so
+// `npm run dev` works with no .env present.
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_URL = `${API_BASE}/api/dates`;
 
+// Assumes Philippine pesos (the app is scoped to Zamboanga City). Change the
+// locale/currency here if you track dates elsewhere.
 const peso = new Intl.NumberFormat("en-PH", {
   style: "currency",
   currency: "PHP",
@@ -73,7 +79,7 @@ export default function Dashboard() {
     setDeletingId(id);
     try {
       await axios.delete(`${API_URL}/${id}`);
-
+      // Drop it from local state so the list updates instantly.
       setDates((prev) => prev.filter((d) => d._id !== id));
     } catch (err) {
       window.alert("Couldn't delete this date. Please try again.");

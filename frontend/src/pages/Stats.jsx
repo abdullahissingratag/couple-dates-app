@@ -10,8 +10,13 @@ import {
   PlusCircle,
 } from "lucide-react";
 
-const SUMMARY_URL = "http://localhost:5000/api/dates/summary";
+// Backend origin comes from the VITE_API_URL env var (set in .env locally and
+// in the Vercel dashboard for production). Falls back to the local server so
+// `npm run dev` works with no .env present.
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const SUMMARY_URL = `${API_BASE}/api/dates/summary`;
 
+// Same PHP formatter used across the app (scoped to Zamboanga City).
 const peso = new Intl.NumberFormat("en-PH", {
   style: "currency",
   currency: "PHP",
@@ -25,19 +30,22 @@ export default function Stats() {
 
   useEffect(() => {
     let ignore = false;
+
     async function fetchSummary() {
       try {
         const { data } = await axios.get(SUMMARY_URL);
         if (!ignore) setSummary(data);
       } catch (err) {
-        if (!ignore)
+        if (!ignore) {
           setError(
             "Couldn't reach the server. Make sure it's running on port 5000.",
           );
+        }
       } finally {
         if (!ignore) setLoading(false);
       }
     }
+
     fetchSummary();
     return () => {
       ignore = true;
@@ -51,16 +59,19 @@ export default function Stats() {
     return () => cancelAnimationFrame(id);
   }, [summary]);
 
+  // Safe reads — the API always returns numbers, but default anyway.
   const totalSpent = summary?.totalSpent ?? 0;
   const paidByMe = summary?.paidByMe ?? 0;
   const paidByHer = summary?.paidByHer ?? 0;
   const split = summary?.split ?? 0;
 
-  // Optional: only present if the /summary route was updated to include it.
+  // totalDates is only present if the /summary route has been updated to
+  // include it. Treat it as optional so the page still works without it.
   const totalDates = summary?.totalDates;
   const hasCount = Number.isFinite(totalDates);
   const avgPerDate = hasCount && totalDates > 0 ? totalSpent / totalDates : 0;
 
+  // Each payer's share of the grand total, as a percentage for the bar width.
   const pct = (amount) => (totalSpent > 0 ? (amount / totalSpent) * 100 : 0);
 
   const payers = [
@@ -88,6 +99,7 @@ export default function Stats() {
   ];
 
   function renderBody() {
+    // Loading — skeletons shaped like the real layout.
     if (loading) {
       return (
         <div className="space-y-4">
@@ -101,6 +113,7 @@ export default function Stats() {
       );
     }
 
+    // Error
     if (error) {
       return (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
@@ -109,6 +122,7 @@ export default function Stats() {
       );
     }
 
+    // Empty — nothing to visualize yet.
     if (totalSpent === 0) {
       return (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-16 text-center">
@@ -134,6 +148,7 @@ export default function Stats() {
       );
     }
 
+    // Content
     return (
       <div className="space-y-4">
         {/* Hero — total spent */}
