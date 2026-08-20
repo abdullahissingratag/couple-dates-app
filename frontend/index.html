@@ -2,9 +2,32 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+
+    <!-- Tints the browser/OS UI (Android address bar, task switcher). Matches
+         the `theme_color` in the manifest. -->
+    <meta name="theme-color" content="#ffffff" />
+
+    <!-- Lets the app run full-screen ("standalone") when launched from the
+         home screen. `mobile-web-app-capable` is the modern standard;
+         `apple-mobile-web-app-capable` is the iOS-specific equivalent (kept
+         for older iOS Safari). -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+
+    <!-- iOS status-bar appearance in standalone mode. "default" = light bar
+         with dark text, which suits the app's white theme. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+
+    <!-- Home-screen label on iOS (uses the short name). -->
+    <meta name="apple-mobile-web-app-title" content="Dates" />
+
+    <!-- iOS ignores the manifest icons and uses this instead. Needs a
+         180x180 PNG at /public/apple-touch-icon.png. -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <title>Our Dates</title>
   </head>
   <body>
     <div id="root"></div>
