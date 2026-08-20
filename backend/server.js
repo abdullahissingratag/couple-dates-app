@@ -9,7 +9,21 @@ const dateRoutes = require("./routes/dateRoutes");
 const app = express();
 
 // ---- Middleware ----
-app.use(cors());
+// Only these origins may call the API from a browser. Each must be scheme +
+// host ONLY — no trailing slash, no path. Add more (e.g. Vercel preview URLs)
+// as needed. With credentials:true you cannot use a "*" wildcard, so origins
+// are listed explicitly.
+const allowedOrigins = [
+  "http://localhost:5173", // Vite dev server
+  "https://couple-dates-app.vercel.app", // deployed frontend
+];
+
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  }),
+);
 app.use(express.json());
 
 // ---- Routes ----

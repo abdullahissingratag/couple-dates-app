@@ -52,7 +52,18 @@ export default function Dashboard() {
     async function fetchDates() {
       try {
         const { data } = await axios.get(API_URL);
-        if (!ignore) setDates(data);
+        // Guard against a non-array payload (an error object, or an HTML page
+        // from a misconfigured API URL). Storing that would crash `.map()`
+        // later, so we normalize to an empty array and warn instead.
+        if (!ignore) {
+          if (Array.isArray(data)) {
+            setDates(data);
+          } else {
+            console.warn("Expected an array from", API_URL, "but got:", data);
+            setDates([]);
+            setError("The server returned unexpected data. Check the API URL.");
+          }
+        }
       } catch (err) {
         if (!ignore) {
           setError(
@@ -111,8 +122,10 @@ export default function Dashboard() {
     );
   }
 
-  // Empty state — an invitation to act
-  if (dates.length === 0) {
+  // Empty state — an invitation to act. The Array.isArray guard is belt-and-
+  // suspenders: setDates already normalizes to an array, but this guarantees
+  // we never reach dates.map() below with a non-array value.
+  if (!Array.isArray(dates) || dates.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-16 text-center">
         <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-rose-50">
